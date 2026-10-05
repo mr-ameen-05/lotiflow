@@ -208,12 +208,12 @@ CREATE TABLE IF NOT EXISTS soc_audit_log (
 );
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS idx_process_host_time ON soc_process_event(host_id, timestamp);
-CREATE INDEX IF NOT EXISTS idx_alert_status_time ON soc_alert_reference(status, timestamp);
-CREATE INDEX IF NOT EXISTS idx_case_status_created ON soc_case(status, created_at);
-CREATE INDEX IF NOT EXISTS idx_case_alerts_case ON soc_case_alerts(case_id);
-CREATE INDEX IF NOT EXISTS idx_case_alerts_alert ON soc_case_alerts(alert_id);
-CREATE INDEX IF NOT EXISTS idx_audit_user_time ON soc_audit_log(user_id, timestamp);
+CREATE INDEX idx_process_host_time ON soc_process_event(host_id, timestamp);
+CREATE INDEX idx_alert_status_time ON soc_alert_reference(status, timestamp);
+CREATE INDEX idx_case_status_created ON soc_case(status, created_at);
+CREATE INDEX idx_case_alerts_case ON soc_case_alerts(case_id);
+CREATE INDEX idx_case_alerts_alert ON soc_case_alerts(alert_id);
+CREATE INDEX idx_audit_user_time ON soc_audit_log(user_id, timestamp);
 
 -- Seed Data
 INSERT IGNORE INTO soc_role (role_id, role_name, description) VALUES
