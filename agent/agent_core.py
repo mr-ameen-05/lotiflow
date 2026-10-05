@@ -12,12 +12,12 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- Configuration ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-SHARED_SECRET = "SOCflow-Enroll-2026!"
 CONFIG_FILE = os.path.join(SCRIPT_DIR, "agent_config.json")
 SETTINGS_FILE = os.path.join(SCRIPT_DIR, "agent_settings.json")
 
 # Default to localhost, but try to load from settings
 SERVER_API = "http://127.0.0.1:5001/api"
+ENROLLMENT_KEY = "SOCflow-Enroll-2026!" # Fallback default
 
 # 1. Load from settings file if it exists
 if os.path.exists(SETTINGS_FILE):
@@ -26,6 +26,8 @@ if os.path.exists(SETTINGS_FILE):
             settings = json.load(f)
             if "server_url" in settings:
                 SERVER_API = settings["server_url"]
+            if "enrollment_key" in settings:
+                ENROLLMENT_KEY = settings["enrollment_key"]
     except Exception as e:
         print(f"⚠️ Failed to load settings: {e}")
 
@@ -61,7 +63,7 @@ def register_with_server():
 
     payload = {
         "hostname": hostname,
-        "password": SHARED_SECRET,
+        "password": ENROLLMENT_KEY,
         "os_info": os_info
     }
 
