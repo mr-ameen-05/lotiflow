@@ -1,0 +1,5 @@
+{
+  "name": "SOCflow - LotL Detection Platform",
+  "description": "Security Operations Center monitoring platform specialising in automated Living-off-the-Land (LotL) attack detection. Features 14 LOLBin detection rules, pure-Python threat scoring engine, real-time process telemetry, and case management.",
+  "requestFramePermissions": []
+}

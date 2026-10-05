@@ -1,0 +1,18 @@
+<Sysmon schemaversion="4.82">
+  <!-- Capture SHA256 hashes for integrity -->
+  <HashAlgorithms>SHA256</HashAlgorithms>
+  <EventFiltering>
+    <!-- Event ID 1: Process Creation -->
+    <RuleGroup name="" groupRelation="or">
+      <ProcessCreate onmatch="include">
+        <!-- Rule: CertUtil Abuse -->
+        <Image condition="image">certutil.exe</Image>
+        <!-- Rule: PowerShell Abuse -->
+        <Image condition="image">powershell.exe</Image>
+        <Image condition="image">pwsh.exe</Image>
+        <!-- Rule: Scheduled Task Abuse -->
+        <Image condition="image">schtasks.exe</Image>
+      </ProcessCreate>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>

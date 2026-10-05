@@ -1,0 +1,180 @@
+# Deployment Guide: Lotiflow on Ubuntu Server
+
+This guide details the steps to deploy the Lotiflow application on a fresh Ubuntu Server using Docker and Docker Compose.
+
+## 1. Prerequisites
+
+Ensure your Ubuntu server meets the following requirements:
+- **OS**: Ubuntu 20.04 LTS or 22.04 LTS
+- **Resources**: Minimum 4GB RAM (8GB+ recommended for AI services/Ollama), 2 CPU Cores, 20GB+ Disk Space.
+- **Port Access**: Ensure the following ports are open in your server's firewall (UFW/Security Group):
+  - `22` (SSH)
+  - `80` (HTTP - Optional if using reverse proxy)
+  - `443` (HTTPS - Optional)
+  - `8082` (Main Application Access via Nginx Proxy)
+  - `8083` (phpMyAdmin - Specific Admin access)
+  - `11435` (Ollama API - Specific AI access)
+  - `3001` (Frontend Direct Access - Optional/Debug)
+
+## 2. Server Preparation
+
+Update your system and install necessary packages.
+
+```bash
+# Update package list and upgrade packages
+sudo apt update && sudo apt upgrade -y
+
+# Install prerequisite packages
+sudo apt install -y apt-transport-https ca-certificates curl software-properties-common git
+```
+
+### Install Docker & Docker Compose
+
+```bash
+# Add Docker's official GPG key
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+# Set up the stable repository
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io
+
+# Install Docker Compose (Plugin)
+sudo apt install -y docker-compose-plugin
+
+# Verify Docker installation
+sudo docker --version
+sudo docker compose version
+```
+
+## 3. Application Deployment
+
+### 3.1 Clone the Repository
+
+Clone your project repository to the server.
+
+```bash
+cd /opt
+sudo git clone <YOUR_GIT_REPOSITORY_URL> lotiflow
+cd lotiflow
+```
+*(Replace `<YOUR_GIT_REPOSITORY_URL>` with your actual repository URL)*.
+
+### 3.2 Configuration
+
+1.  **Environment Variables**:
+    Create a `.env` file in the root directory if you have specific secrets.
+    The default `docker-compose.yml` currently uses hardcoded credentials (`root`/`root`). For production, it is highly recommended to change these in `docker-compose.yml` and your application config.
+
+    Example `.env` (if you modify docker-compose to use it):
+    ```env
+    DB_ROOT_PASSWORD=secure_password
+    DB_USER=lotiflow_user
+    DB_PASSWORD=secure_password
+    ```
+
+2.  **Permissions**:
+    Ensure the `agent` directory and other volume mounts have appropriate permissions if strictly enforced, but Docker usually handles this.
+
+### 3.3 Build and Run
+
+Run the application using Docker Compose. This will build the usage images (Frontend, Backend, Engine) and pull the others (MySQL, phpMyAdmin, Ollama, Nginx).
+
+```bash
+# Build and start services in detached mode
+sudo docker compose up -d --build
+```
+
+### 3.4 Verify Deployment
+
+Check the status of your containers:
+
+```bash
+sudo docker compose ps
+```
+
+You should see the following containers running:
+- `lotiflow-nginx`
+- `lotiflow-frontend`
+- `lotiflow-backend`
+- `lotiflow-engine`
+- `lotiflow-db`
+- `lotiflow-phpmyadmin`
+- `lotiflow-ollama`
+
+## 4. Accessing the Application
+
+Once up and running, access the application via your web browser:
+
+- **Main Application**: `http://<YOUR_SERVER_IP>:8082`
+- **phpMyAdmin**: `http://<YOUR_SERVER_IP>:8083`
+- **Ollama API**: `http://<YOUR_SERVER_IP>:11435`
+
+## 5. Troubleshooting / Common Issues
+
+### 5.1 Permission Denied Error
+If you see `permission denied while trying to connect to the Docker daemon socket`, it means your user does not have permission to run Docker commands.
+**Solution:**
+- Append `sudo` to every docker command: `sudo docker compose up -d`
+- OR add your user to the docker group (requires logout/login):
+  ```bash
+  sudo usermod -aG docker $USER
+  newgrp docker
+  ```
+
+### 5.2 "Network not found" Error
+This error often occurs if a previous `docker compose` session was interrupted or if network artifacts are stale.
+**Solution:**
+1. Stop any running containers (if any):
+   ```bash
+   sudo docker compose down --remove-orphans
+   ```
+2. Prune unused networks:
+   ```bash
+   sudo docker network prune -f
+   ```
+3. Restart the application:
+   ```bash
+   sudo docker compose up -d --build
+   ```
+
+### 5.3 Backend/Engine Connection Issues
+- **Database Connection**: The backend and engine services depend on the database. If they crash on startup, it might be due to the database taking longer to initialize.
+  - Check logs: `sudo docker compose logs -f backend` or `sudo docker compose logs -f engine`
+  - The `engine` service processes `test_logs.json` and then exits by default. This is normal behavior for the current configuration. To keep it running, ensure it has a continuous loop or use `restart: always` in `docker-compose.yml`.
+
+- **Frontend not loading**:
+  - Check Nginx logs: `sudo docker compose logs nginx`
+  - Ensure port `8082` is allowed through the firewall.
+
+- **Persistent Build Errors**:
+  - If you see build errors for files you've already fixed (e.g. `Login.tsx`), Docker might be caching the old version.
+  - Fix: Force rebuild without cache:
+    ```bash
+    sudo docker compose build --no-cache frontend
+    sudo docker compose up -d
+    ```
+
+- **Ollama Performance**:
+  - Running AI models requires significant RAM. If the `lotiflow-ollama` container crashes, check system memory usage (`free -h`).
+
+## 6. Maintenance
+
+- **Stopping the application**:
+  ```bash
+  sudo docker compose down
+  ```
+
+- **Updating the application**:
+  ```bash
+  git pull origin main
+  sudo docker compose up -d --build
+  ```
+
+- **Viewing Logs**:
+  ```bash
+  sudo docker compose logs -f [service_name]
+  # Example: sudo docker compose logs -f backend
+  ```
