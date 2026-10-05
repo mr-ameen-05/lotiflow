@@ -53,7 +53,7 @@ After=network.target mysql.service redis-server.service
 
 [Service]
 Type=simple
-User=$SUDO_USER
+User=${SUDO_USER:-root}
 WorkingDirectory=$APP_DIR/backend
 ExecStart=/usr/bin/node server.js
 Environment="NODE_ENV=production"
@@ -82,7 +82,7 @@ After=network.target mysql.service redis-server.service
 
 [Service]
 Type=simple
-User=$SUDO_USER
+User=${SUDO_USER:-root}
 WorkingDirectory=$APP_DIR/server
 ExecStart=$APP_DIR/server/venv/bin/python analyzer.py
 Environment="DB_HOST=127.0.0.1"
