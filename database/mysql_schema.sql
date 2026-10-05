@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS soc_login (
     email VARCHAR(255) UNIQUE NOT NULL,
     phone TEXT,
     password_hash TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
-    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    status VARCHAR(64) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_login TEXT,
     FOREIGN KEY (role_id) REFERENCES soc_role(role_id)
 );
@@ -27,11 +27,11 @@ CREATE TABLE IF NOT EXISTS soc_host (
     ip_address TEXT,
     os_name TEXT,
     os_version TEXT,
-    environment TEXT NOT NULL DEFAULT 'lab' CHECK (environment IN ('lab', 'prod')),
-    criticality TEXT NOT NULL DEFAULT 'medium' CHECK (criticality IN ('low', 'medium', 'high')),
-    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    environment VARCHAR(64) NOT NULL DEFAULT 'lab' CHECK (environment IN ('lab', 'prod')),
+    criticality VARCHAR(64) NOT NULL DEFAULT 'medium' CHECK (criticality IN ('low', 'medium', 'high')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_seen TEXT,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'isolated'))
+    status VARCHAR(64) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'isolated'))
 );
 
 -- 4) soc_agent
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS soc_agent (
     agent_uuid VARCHAR(255) UNIQUE NOT NULL,
     agent_name TEXT NOT NULL,
     agent_version TEXT,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    status VARCHAR(64) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     last_seen TEXT,
     install_time TEXT,
     FOREIGN KEY (host_id) REFERENCES soc_host(host_id) ON DELETE CASCADE
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS soc_user_host (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     user_id INTEGER NOT NULL,
     host_id INTEGER NOT NULL,
-    access_level TEXT NOT NULL DEFAULT 'editor' CHECK (access_level IN ('owner', 'editor', 'viewer')),
+    access_level VARCHAR(64) NOT NULL DEFAULT 'editor' CHECK (access_level IN ('owner', 'editor', 'viewer')),
     UNIQUE (user_id, host_id),
     FOREIGN KEY (user_id) REFERENCES soc_login(login_id) ON DELETE CASCADE,
     FOREIGN KEY (host_id) REFERENCES soc_host(host_id) ON DELETE CASCADE
@@ -66,9 +66,9 @@ CREATE TABLE IF NOT EXISTS soc_detection_rule (
     technique TEXT,
     severity_default TEXT NOT NULL CHECK (severity_default IN ('low', 'medium', 'high', 'critical')),
     enabled INTEGER NOT NULL DEFAULT 1,
-    logic_type TEXT NOT NULL DEFAULT 'keyword' CHECK (logic_type IN ('regex', 'keyword', 'sigma')),
+    logic_type VARCHAR(64) NOT NULL DEFAULT 'keyword' CHECK (logic_type IN ('regex', 'keyword', 'sigma')),
     rule_content TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT
 );
 
@@ -77,9 +77,9 @@ CREATE TABLE IF NOT EXISTS soc_process_event (
     event_id INTEGER PRIMARY KEY AUTO_INCREMENT,
     host_id INTEGER NOT NULL,
     agent_id INTEGER,
-    provider TEXT NOT NULL DEFAULT 'Sysmon' CHECK (provider IN ('Sysmon', 'Security', 'PowerShell')),
-    event_type TEXT NOT NULL DEFAULT 'ProcessCreate',
-    timestamp TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    provider VARCHAR(64) NOT NULL DEFAULT 'Sysmon' CHECK (provider IN ('Sysmon', 'Security', 'PowerShell')),
+    event_type VARCHAR(64) NOT NULL DEFAULT 'ProcessCreate',
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     user_name TEXT,
     image_path TEXT,
     process_name TEXT,
@@ -104,10 +104,10 @@ CREATE TABLE IF NOT EXISTS soc_alert_reference (
     rule_id INTEGER NOT NULL,
     severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
     description TEXT,
-    timestamp TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'open', 'suppressed', 'closed')),
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(64) NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'open', 'suppressed', 'closed')),
     confidence_score REAL CHECK (confidence_score >= 0 AND confidence_score <= 100),
-    detection_source TEXT NOT NULL DEFAULT 'rule' CHECK (detection_source IN ('rule', 'ml', 'hybrid')),
+    detection_source VARCHAR(64) NOT NULL DEFAULT 'rule' CHECK (detection_source IN ('rule', 'ml', 'hybrid')),
     FOREIGN KEY (host_id) REFERENCES soc_host(host_id) ON DELETE CASCADE,
     FOREIGN KEY (agent_id) REFERENCES soc_agent(agent_id) ON DELETE SET NULL,
     FOREIGN KEY (event_ref_id) REFERENCES soc_process_event(event_id) ON DELETE SET NULL,
@@ -119,11 +119,11 @@ CREATE TABLE IF NOT EXISTS soc_case (
     case_id INTEGER PRIMARY KEY AUTO_INCREMENT,
     title TEXT NOT NULL,
     description TEXT,
-    priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
-    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'closed')),
+    priority VARCHAR(64) NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+    status VARCHAR(64) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'closed')),
     created_by INTEGER NOT NULL,
     assigned_to INTEGER,
-    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     closed_at TEXT,
     FOREIGN KEY (created_by) REFERENCES soc_login(login_id),
     FOREIGN KEY (assigned_to) REFERENCES soc_login(login_id) ON DELETE SET NULL
@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS soc_case_alerts (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
     case_id INTEGER NOT NULL,
     alert_id INTEGER NOT NULL,
-    added_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (case_id, alert_id),
     FOREIGN KEY (case_id) REFERENCES soc_case(case_id) ON DELETE CASCADE,
     FOREIGN KEY (alert_id) REFERENCES soc_alert_reference(alert_id) ON DELETE CASCADE
@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS soc_case_note (
     case_id INTEGER NOT NULL,
     author_id INTEGER,
     note_text TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (case_id) REFERENCES soc_case(case_id) ON DELETE CASCADE,
     FOREIGN KEY (author_id) REFERENCES soc_login(login_id) ON DELETE SET NULL
 );
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS soc_acknowledgement (
     user_id INTEGER NOT NULL,
     ack_status TEXT NOT NULL CHECK (ack_status IN ('acknowledged', 'ignored', 'false_positive')),
     note TEXT,
-    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (alert_id, user_id),
     FOREIGN KEY (alert_id) REFERENCES soc_alert_reference(alert_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES soc_login(login_id) ON DELETE CASCADE
@@ -173,7 +173,7 @@ CREATE TABLE IF NOT EXISTS soc_forensic_artifact (
     artifact_type TEXT NOT NULL,
     file_path TEXT NOT NULL,
     hash_sha256 TEXT,
-    collected_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    collected_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     collected_by INTEGER,
     notes TEXT,
     FOREIGN KEY (case_id) REFERENCES soc_case(case_id) ON DELETE SET NULL,
@@ -190,7 +190,7 @@ CREATE TABLE IF NOT EXISTS soc_report (
     period_start TEXT,
     period_end TEXT,
     file_path TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (generated_by) REFERENCES soc_login(login_id)
 );
 
@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS soc_audit_log (
     action_type TEXT NOT NULL,
     object_type TEXT,
     object_id INTEGER,
-    timestamp TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ip_address TEXT,
     details TEXT,
     FOREIGN KEY (user_id) REFERENCES soc_login(login_id) ON DELETE SET NULL
