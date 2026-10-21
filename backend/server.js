@@ -662,22 +662,28 @@ app.post('/api/logs', async (req, res) => {
     }
 });
 
-app.get('/api/agent/download', requireAuth, requireRole('Manager'), async (req, res) => {
+app.get('/api/agent/download', requireAuth, async (req, res) => {
     try {
         const zip = new AdmZip();
         const agentFolder = path.join(__dirname, '../agent');
-        const files = ['agent_core.py', 'connect.py', 'install.ps1', 'install.py',
-                       'requirements.txt', 'simulate_attack.ps1', 'simulate_attack.py'];
+        const files = [
+            'agent_core.py', 'agent_gui.py', 'connect.py', 'install.ps1', 'install.py',
+            'requirements.txt', 'simulate_attack.ps1', 'simulate_attack.py', 'README.md'
+        ];
         for (const f of files) {
-            try { zip.addLocalFile(path.join(agentFolder, f)); } catch (_) {}
+            const filePath = path.join(agentFolder, f);
+            if (fs.existsSync(filePath)) {
+                zip.addLocalFile(filePath);
+            }
         }
         const data = zip.toBuffer();
-        res.set('Content-Type', 'application/octet-stream');
-        res.set('Content-Disposition', 'attachment; filename=SOCflow_Agent_Installer.zip');
+        res.set('Content-Type', 'application/zip');
+        res.set('Content-Disposition', 'attachment; filename="SOCflow_Agent_Installer.zip"');
         res.set('Content-Length', data.length);
-        res.send(data);
+        return res.send(data);
     } catch (err) {
-        res.status(500).json({ error: 'Failed to create agent bundle' });
+        console.error('Agent zip error:', err);
+        return res.status(500).json({ error: 'Failed to create agent bundle' });
     }
 });
 

