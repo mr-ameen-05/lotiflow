@@ -187,9 +187,41 @@ app.get('/api/alerts', requireAuth, async (req, res) => {
 app.get('/api/stats', requireAuth, async (req, res) => {
     try {
         const alerts = await dbAll('SELECT severity, COUNT(*) as count FROM soc_alert_reference GROUP BY severity');
-        const hosts = await dbGet('SELECT COUNT(*) as count FROM soc_host WHERE status = ?', ['active']);
+        const hostsTotal = await dbGet('SELECT COUNT(*) as count FROM soc_host');
+        const hostsActive = await dbGet('SELECT COUNT(*) as count FROM soc_host WHERE status = ?', ['active']);
         const newAlerts = await dbGet('SELECT COUNT(*) as count FROM soc_alert_reference WHERE status = ?', ['new']);
-        res.json({ alerts, hosts: hosts ? hosts.count : 0, new_alerts: newAlerts ? newAlerts.count : 0 });
+        const activeRules = await dbGet('SELECT COUNT(*) as count FROM soc_detection_rule WHERE is_active = 1');
+        const casesCount = await dbGet('SELECT COUNT(*) as total, SUM(CASE WHEN status != "closed" AND status != "resolved" THEN 1 ELSE 0 END) as open_cases FROM soc_case');
+        const topHosts = await dbAll(`
+            SELECT h.hostname as host, COUNT(a.alert_id) as alerts
+            FROM soc_host h
+            JOIN soc_alert_reference a ON h.host_id = a.host_id
+            GROUP BY h.hostname
+            ORDER BY alerts DESC
+            LIMIT 5
+        `);
+        const topRules = await dbAll(`
+            SELECT r.rule_name, r.technique, COUNT(a.alert_id) as count
+            FROM soc_detection_rule r
+            JOIN soc_alert_reference a ON r.rule_id = a.rule_id
+            GROUP BY r.rule_name, r.technique
+            ORDER BY count DESC
+            LIMIT 5
+        `);
+
+        res.json({
+            alerts,
+            hosts: hostsActive ? hostsActive.count : 0,
+            hosts_total: hostsTotal ? hostsTotal.count : 0,
+            new_alerts: newAlerts ? newAlerts.count : 0,
+            active_rules: activeRules ? activeRules.count : 14,
+            cases: {
+                total: casesCount?.total || 0,
+                open: casesCount?.open_cases || 0
+            },
+            top_hosts: topHosts || [],
+            top_rules: topRules || []
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

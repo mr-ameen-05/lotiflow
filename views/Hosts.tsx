@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     Server, Download, ShieldCheck, Activity, Plus,
-    RefreshCw, Clock, Monitor, Key, CheckCircle, XCircle
+    RefreshCw, Clock, Monitor, Key, CheckCircle, XCircle,
+    Terminal, Copy, FileText
 } from 'lucide-react';
 
 const API_URL = '/api';
@@ -11,10 +12,12 @@ const Hosts: React.FC = () => {
     const [agents, setAgents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [showEnrollModal, setShowEnrollModal] = useState(false);
     const [hostname, setHostname] = useState('');
     const [ipAddress, setIpAddress] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [downloading, setDownloading] = useState(false);
+    const [copiedText, setCopiedText] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
 
     const loadData = async () => {
@@ -97,12 +100,18 @@ const Hosts: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
+                        onClick={() => setShowEnrollModal(true)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 transition-colors"
+                    >
+                        <Terminal size={14} /> Agent Instructions
+                    </button>
+                    <button
                         onClick={handleDownloadAgent}
                         disabled={downloading}
                         className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm disabled:opacity-60"
                     >
                         <Download size={14} />
-                        {downloading ? 'Bundling Package...' : 'Download Agent Bundle (ZIP)'}
+                        {downloading ? 'Bundling...' : 'Download Bundle (ZIP)'}
                     </button>
                     <button
                         onClick={() => setShowAddModal(true)}
@@ -302,6 +311,88 @@ const Hosts: React.FC = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Agent Enrollment Instructions Modal */}
+            {showEnrollModal && (
+                <div className="fixed inset-0 z-50 bg-gray-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl w-full max-w-xl p-6 shadow-2xl">
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="flex items-center gap-2">
+                                <Terminal className="text-emerald-500" size={20} />
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                                    Windows Endpoint Enrollment Guide
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => setShowEnrollModal(false)}
+                                className="text-gray-400 hover:text-white text-lg font-bold"
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                            Deploy the SOCflow Python telemetry collector on Windows 10/11 or Server 2019/2022 to stream Sysmon Event ID 1 process creation events.
+                        </p>
+
+                        <div className="space-y-4">
+                            <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                                    Step 1: Download &amp; Extract
+                                </div>
+                                <p className="text-xs text-gray-300">
+                                    Download the Agent Bundle ZIP and unzip on the Windows endpoint:
+                                </p>
+                                <button
+                                    onClick={handleDownloadAgent}
+                                    className="mt-2 text-xs font-semibold text-emerald-400 hover:underline flex items-center gap-1"
+                                >
+                                    <Download size={13} /> Download SOCflow_Agent_Installer.zip
+                                </button>
+                            </div>
+
+                            <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                                    Step 2: Run Agent (GUI or Background)
+                                </div>
+                                <div className="bg-gray-950 p-2.5 rounded font-mono text-[11px] text-emerald-400 flex justify-between items-center">
+                                    <code>pip install -r requirements.txt &amp;&amp; python agent_gui.py</code>
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText('pip install -r requirements.txt && python agent_gui.py');
+                                            setCopiedText(true);
+                                            setTimeout(() => setCopiedText(false), 2000);
+                                        }}
+                                        className="text-gray-400 hover:text-white ml-2"
+                                        title="Copy Command"
+                                    >
+                                        <Copy size={13} />
+                                    </button>
+                                </div>
+                                {copiedText && <p className="text-[10px] text-emerald-400 mt-1">Copied to clipboard!</p>}
+                            </div>
+
+                            <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                                    Step 3: Verification
+                                </div>
+                                <p className="text-xs text-gray-400">
+                                    Once started, the agent auto-enrolls via <code className="text-emerald-400">/api/enroll</code>, sets host status to <strong>Online</strong>, and begins queuing process creation events to Redis.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-5">
+                            <button
+                                onClick={() => setShowEnrollModal(false)}
+                                className="px-4 py-2 rounded-lg text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200"
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

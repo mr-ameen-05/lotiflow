@@ -223,12 +223,35 @@ const Alerts: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button
-                                                onClick={() => navigate(`/alerts/${alert.alert_id}`)}
-                                                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500 hover:text-emerald-400 transition-colors"
-                                            >
-                                                Investigate &rarr;
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                {alert.status === 'new' && (
+                                                    <button
+                                                        onClick={async (e) => {
+                                                            e.stopPropagation();
+                                                            try {
+                                                                const res = await fetch(`${API_URL}/alerts/${alert.alert_id}/ack`, {
+                                                                    method: 'POST',
+                                                                    credentials: 'include'
+                                                                });
+                                                                if (res.ok) {
+                                                                    setAlerts(prev => prev.map(a => a.alert_id === alert.alert_id ? { ...a, status: 'open' } : a));
+                                                                }
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                            }
+                                                        }}
+                                                        className="px-2.5 py-1 text-[11px] font-bold rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-gray-950 transition-colors"
+                                                    >
+                                                        Claim
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => navigate(`/alerts/${alert.alert_id}`)}
+                                                    className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-500 hover:text-emerald-400 transition-colors"
+                                                >
+                                                    Investigate &rarr;
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
