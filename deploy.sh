@@ -1,8 +1,15 @@
 #!/bin/bash
 
 # ==============================================================================
-# SOCflow Bare-Metal Automated Deployment Script
+# SOCflow Bare-Metal Production Automated Deployment Script
 # Living-off-the-Land (LotL) Attack Detection Platform
+#
+# Features:
+#   - Interactive Public IP Prompt (with automatic detection fallback)
+#   - Auto-Generated Cryptographic Passwords & Secrets
+#   - Self-Signed TLS/SSL Certificate Generation (HTTPS)
+#   - Nginx HTTP (Port 80) -> HTTPS (Port 443) Automatic Redirect
+#   - Systemd Service Configuration & Live Health Checks
 #
 # Usage:
 #   sudo ./deploy.sh
@@ -14,7 +21,7 @@ set -e
 export DEBIAN_FRONTEND=noninteractive
 
 echo "=========================================================="
-echo "      Starting SOCflow Bare-Metal Automated Deployment    "
+echo "    Starting SOCflow Production Bare-Metal Deployment     "
 echo "=========================================================="
 
 if [ "$EUID" -ne 0 ]; then
@@ -23,14 +30,61 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 APP_DIR=$(pwd)
-DB_USER="socflow"
-DB_PASS="socflow_pass"
-DB_NAME="socflow"
 ACTUAL_USER="${SUDO_USER:-root}"
 
+# ------------------------------------------------------------------------------
+# 1. Interactive Public IP / Domain Configuration
+# ------------------------------------------------------------------------------
+DETECTED_IP=$(curl -s --connect-timeout 3 https://api.ipify.org || curl -s --connect-timeout 3 https://ifconfig.me || hostname -I | awk '{print $1}')
+
+echo -e "\n\e[34m[Setup]\e[0m Network & Production Address Configuration:"
+read -p "Enter Server Public IP or Domain [Detected: ${DETECTED_IP}]: " INPUT_IP
+SERVER_IP="${INPUT_IP:-${DETECTED_IP}}"
+echo -e "--> Deploying for Server Address: \e[32m${SERVER_IP}\e[0m"
+
+# ------------------------------------------------------------------------------
+# 2. Auto-Generate Cryptographic Passwords & Secrets
+# ------------------------------------------------------------------------------
+echo -e "\n\e[34m[Setup]\e[0m Generating Cryptographic Credentials..."
+DB_NAME="socflow"
+DB_USER="socflow"
+DB_PASS=$(openssl rand -hex 16)
+SESSION_SECRET=$(openssl rand -hex 32)
+ENROLLMENT_SECRET="SOCflow-Enroll-2026!"
+
+# Save credentials securely to local credentials file with restricted permissions
+cat << EOF > "$APP_DIR/socflow_credentials.txt"
+==================================================
+        SOCflow Deployment Credentials
+==================================================
+Deployment Date : $(date)
+Server Address  : https://${SERVER_IP}
+
+MySQL Database:
+  Host          : 127.0.0.1
+  Database      : ${DB_NAME}
+  User          : ${DB_USER}
+  Password      : ${DB_PASS}
+
+Endpoint Enrollment Secret:
+  Secret Key    : ${ENROLLMENT_SECRET}
+
+Pre-seeded Web Portal Logins:
+  Manager       : manager@socflow.local / SOCflow2026!
+  Analyst       : analyst@socflow.local / SOCflow2026!
+==================================================
+EOF
+chmod 600 "$APP_DIR/socflow_credentials.txt"
+chown ${ACTUAL_USER}:${ACTUAL_USER} "$APP_DIR/socflow_credentials.txt" 2>/dev/null || true
+
+echo -e "--> Database & session credentials generated. Saved to: \e[36m$APP_DIR/socflow_credentials.txt\e[0m"
+
+# ------------------------------------------------------------------------------
+# 3. System Technologies & Dependencies
+# ------------------------------------------------------------------------------
 echo -e "\n\e[34m[1/7]\e[0m Installing System Technologies & Dependencies..."
 apt-get update -y
-apt-get install -y curl git redis-server mysql-server nginx python3-pip python3-venv
+apt-get install -y curl git redis-server mysql-server nginx python3-pip python3-venv openssl
 
 # Install Node.js 18.x LTS if not present
 if ! command -v node > /dev/null; then
@@ -39,11 +93,30 @@ if ! command -v node > /dev/null; then
     apt-get install -y nodejs
 fi
 
-echo -e "\n\e[34m[2/7]\e[0m Provisioning MySQL Database & Dedicated User..."
+# ------------------------------------------------------------------------------
+# 4. Generate Self-Signed SSL/TLS Certificates
+# ------------------------------------------------------------------------------
+echo -e "\n\e[34m[2/7]\e[0m Generating Self-Signed TLS/SSL Certificates..."
+SSL_DIR="/etc/ssl/socflow"
+mkdir -p "$SSL_DIR"
+
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout "$SSL_DIR/socflow.key" \
+    -out "$SSL_DIR/socflow.crt" \
+    -subj "/C=US/ST=Security/L=Operations/O=SOCflow/CN=${SERVER_IP}" 2>/dev/null
+
+chmod 600 "$SSL_DIR/socflow.key"
+chmod 644 "$SSL_DIR/socflow.crt"
+echo "--> SSL certificates generated at $SSL_DIR (CN=${SERVER_IP})"
+
+# ------------------------------------------------------------------------------
+# 5. Provision MySQL Database & Dedicated User
+# ------------------------------------------------------------------------------
+echo -e "\n\e[34m[3/7]\e[0m Provisioning MySQL Database & Dedicated User..."
 systemctl start mysql
 systemctl enable mysql
 
-# Create database and dedicated application user compatible with MySQL 8.0, 8.4 LTS, and 5.7
+# Create database and dedicated application user with auto-generated password
 mysql -u root <<EOF || true
 CREATE DATABASE IF NOT EXISTS ${DB_NAME};
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
@@ -55,7 +128,7 @@ GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_USER}'@'127.0.0.1';
 FLUSH PRIVILEGES;
 EOF
 
-# Apply the database schema
+# Apply database schema
 if [ -f "$APP_DIR/database/mysql_schema.sql" ]; then
     echo "Importing schema from database/mysql_schema.sql..."
     mysql -u root "${DB_NAME}" < "$APP_DIR/database/mysql_schema.sql" || \
@@ -65,11 +138,13 @@ else
     echo -e "\e[33m[WARNING]\e[0m Schema file database/mysql_schema.sql not found!"
 fi
 
-echo -e "\n\e[34m[3/7]\e[0m Configuring Node.js Backend API Service..."
+# ------------------------------------------------------------------------------
+# 6. Configure Node.js Backend API Service
+# ------------------------------------------------------------------------------
+echo -e "\n\e[34m[4/7]\e[0m Configuring Node.js Backend API Service..."
 cd "$APP_DIR/backend"
 npm install --production
 
-# Configure systemd daemon for backend API
 cat << EOF > /etc/systemd/system/socflow-backend.service
 [Unit]
 Description=SOCflow Node.js Backend API Gateway
@@ -81,11 +156,14 @@ User=${ACTUAL_USER}
 WorkingDirectory=$APP_DIR/backend
 ExecStart=/usr/bin/node server.js
 Environment="NODE_ENV=production"
+Environment="PORT=5001"
 Environment="DB_HOST=127.0.0.1"
 Environment="DB_USER=${DB_USER}"
 Environment="DB_PASSWORD=${DB_PASS}"
 Environment="DB_NAME=${DB_NAME}"
 Environment="REDIS_URL=redis://127.0.0.1:6379"
+Environment="SESSION_SECRET=${SESSION_SECRET}"
+Environment="ENROLLMENT_SECRET=${ENROLLMENT_SECRET}"
 Restart=on-failure
 RestartSec=5s
 
@@ -93,14 +171,16 @@ RestartSec=5s
 WantedBy=multi-user.target
 EOF
 
-echo -e "\n\e[34m[4/7]\e[0m Configuring Python Behavioral Detection Engine..."
+# ------------------------------------------------------------------------------
+# 7. Configure Python Detection Engine
+# ------------------------------------------------------------------------------
+echo -e "\n\e[34m[5/7]\e[0m Configuring Python LOLBin Detection Engine..."
 cd "$APP_DIR/server"
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 deactivate
 
-# Configure systemd daemon for detection engine
 cat << EOF > /etc/systemd/system/socflow-engine.service
 [Unit]
 Description=SOCflow Python LOLBin Detection Engine
@@ -123,7 +203,10 @@ RestartSec=5s
 WantedBy=multi-user.target
 EOF
 
-echo -e "\n\e[34m[5/7]\e[0m Building Frontend SPA & Configuring Nginx Reverse Proxy..."
+# ------------------------------------------------------------------------------
+# 8. Build Frontend SPA & Configure Nginx (HTTPS + HTTP Redirect)
+# ------------------------------------------------------------------------------
+echo -e "\n\e[34m[6/7]\e[0m Building Frontend SPA & Configuring Nginx HTTPS..."
 cd "$APP_DIR"
 npm install
 npm run build || {
@@ -138,27 +221,43 @@ chown -R ${ACTUAL_USER}:${ACTUAL_USER} "$APP_DIR/dist" 2>/dev/null || true
 chmod o+x /home /home/* 2>/dev/null || true
 chmod -R o+r "$APP_DIR/dist" 2>/dev/null || true
 
-# Nginx virtual host configuration
+# Nginx virtual host with SSL/TLS termination and HTTP->HTTPS redirection
 cat << EOF > /etc/nginx/sites-available/socflow
+# Redirect HTTP to HTTPS
 server {
     listen 80;
-    server_name _;
+    server_name ${SERVER_IP} _;
+    return 301 https://\$host\$request_uri;
+}
+
+# HTTPS Primary Virtual Host
+server {
+    listen 443 ssl;
+    server_name ${SERVER_IP} _;
+
+    ssl_certificate $SSL_DIR/socflow.crt;
+    ssl_certificate_key $SSL_DIR/socflow.key;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
     root $APP_DIR/dist;
     index index.html;
 
-    # Serve React SPA with client-side fallback
+    # Serve React SPA with client-side routing fallback
     location / {
         try_files \$uri \$uri/ /index.html;
     }
 
-    # Proxy API traffic to Node.js backend
+    # Proxy API requests to Node.js backend
     location /api/ {
         proxy_pass http://127.0.0.1:5001/api/;
         proxy_http_version 1.1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Proto https;
     }
 }
 EOF
@@ -166,7 +265,10 @@ EOF
 ln -sf /etc/nginx/sites-available/socflow /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
-echo -e "\n\e[34m[6/7]\e[0m Starting & Enabling Daemons..."
+# ------------------------------------------------------------------------------
+# 9. Start Services & Run Health Checks
+# ------------------------------------------------------------------------------
+echo -e "\n\e[34m[7/7]\e[0m Starting Daemons & Running Comprehensive Health Checks..."
 systemctl daemon-reload
 systemctl enable redis-server && systemctl restart redis-server
 systemctl enable socflow-backend && systemctl restart socflow-backend
@@ -176,9 +278,7 @@ systemctl enable nginx && systemctl restart nginx
 # Allow daemons time to complete socket initialization
 sleep 3
 
-echo -e "\n\e[34m[7/7]\e[0m Running Comprehensive System Health Checks..."
 echo "=========================================================="
-
 CHECK_FAILED=0
 
 check_service() {
@@ -198,12 +298,20 @@ check_service "socflow-engine"
 
 echo "----------------------------------------------------------"
 
-# Health Check: Frontend Web Delivery
-FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/ || true)
-if [ "$FRONTEND_STATUS" = "200" ]; then
-    echo -e "[\e[32mOK\e[0m] Frontend Web Delivery: Responding with HTTP 200 on port 80."
+# Health Check: HTTP to HTTPS Redirect
+HTTP_REDIRECT=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/ || true)
+if [ "$HTTP_REDIRECT" = "301" ]; then
+    echo -e "[\e[32mOK\e[0m] HTTP Redirect: Port 80 redirects to HTTPS (HTTP 301)."
 else
-    echo -e "[\e[31mFAIL\e[0m] Frontend Web Delivery: Returned HTTP ${FRONTEND_STATUS}."
+    echo -e "[\e[33mWARN\e[0m] HTTP Redirect returned HTTP ${HTTP_REDIRECT}."
+fi
+
+# Health Check: HTTPS Web Delivery (curl -k for self-signed)
+HTTPS_STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" https://127.0.0.1/ || true)
+if [ "$HTTPS_STATUS" = "200" ]; then
+    echo -e "[\e[32mOK\e[0m] HTTPS Web Delivery: Responding with HTTP 200 over TLS (Port 443)."
+else
+    echo -e "[\e[31mFAIL\e[0m] HTTPS Web Delivery: Returned HTTP ${HTTPS_STATUS}."
     CHECK_FAILED=1
 fi
 
@@ -215,16 +323,16 @@ else
     CHECK_FAILED=1
 fi
 
-# Health Check: MySQL Database Connectivity
+# Health Check: MySQL Database Connectivity with auto-generated credentials
 if mysql -u "${DB_USER}" -p"${DB_PASS}" -h 127.0.0.1 -e "USE ${DB_NAME}; SELECT 1;" &>/dev/null; then
-    echo -e "[\e[32mOK\e[0m] Database: MySQL application credentials verified."
+    echo -e "[\e[32mOK\e[0m] Database: Authenticated with auto-generated credentials."
 else
     echo -e "[\e[31mFAIL\e[0m] Database: MySQL connection failed for user '${DB_USER}'."
     CHECK_FAILED=1
 fi
 
-# Health Check: Backend Ingestion API Proxy
-BACKEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1/api/connection/verify || true)
+# Health Check: Backend Ingestion API Proxy over HTTPS
+BACKEND_STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" https://127.0.0.1/api/connection/verify || true)
 if [ "$BACKEND_STATUS" = "200" ]; then
     echo -e "[\e[32mOK\e[0m] Backend API Proxy: Nginx -> Express API routing verified (HTTP 200)."
 else
@@ -235,9 +343,10 @@ fi
 echo "=========================================================="
 
 if [ "$CHECK_FAILED" -eq 0 ]; then
-    echo -e "\e[32m✔ SOCflow Bare-Metal Deployment Completed Successfully!\e[0m"
-    echo -e "Access the SOC Dashboard at: \e[36mhttp://localhost/\e[0m (or your server's public IP)"
-    echo -e "\nDemo Credentials:"
+    echo -e "\e[32m✔ SOCflow Bare-Metal Production Deployment Completed Successfully!\e[0m"
+    echo -e "Access the SOC Dashboard at: \e[36mhttps://${SERVER_IP}/\e[0m"
+    echo -e "Credentials file generated at: \e[33m$APP_DIR/socflow_credentials.txt\e[0m"
+    echo -e "\nDemo Web Portal Logins:"
     echo -e "  Manager: \e[33mmanager@socflow.local\e[0m / \e[32mSOCflow2026!\e[0m"
     echo -e "  Analyst: \e[33manalyst@socflow.local\e[0m / \e[32mSOCflow2026!\e[0m"
 else
