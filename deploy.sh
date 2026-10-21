@@ -129,7 +129,12 @@ EOF
 echo -e "\n\e[34m[5/7]\e[0m Building Frontend SPA & Configuring Nginx Reverse Proxy..."
 cd "$APP_DIR"
 npm install
-npm run build
+npm run build || {
+    echo "Retrying build with clean node_modules cache..."
+    rm -rf node_modules package-lock.json
+    npm install
+    npm run build
+}
 
 # Ensure web server (www-data) can read static dist assets
 chown -R ${ACTUAL_USER}:${ACTUAL_USER} "$APP_DIR/dist" 2>/dev/null || true
