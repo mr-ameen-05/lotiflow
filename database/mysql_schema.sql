@@ -208,12 +208,36 @@ CREATE TABLE IF NOT EXISTS soc_audit_log (
 );
 
 -- Indexes
-CREATE INDEX idx_process_host_time ON soc_process_event(host_id, timestamp);
-CREATE INDEX idx_alert_status_time ON soc_alert_reference(status, timestamp);
-CREATE INDEX idx_case_status_created ON soc_case(status, created_at);
-CREATE INDEX idx_case_alerts_case ON soc_case_alerts(case_id);
-CREATE INDEX idx_case_alerts_alert ON soc_case_alerts(alert_id);
-CREATE INDEX idx_audit_user_time ON soc_audit_log(user_id, timestamp);
+DROP PROCEDURE IF EXISTS CreateIndexIfNotExists;
+DELIMITER //
+CREATE PROCEDURE CreateIndexIfNotExists(
+    IN tableName VARCHAR(64),
+    IN indexName VARCHAR(64),
+    IN columnList VARCHAR(255)
+)
+BEGIN
+    DECLARE indexCount INT;
+    SELECT COUNT(1) INTO indexCount
+    FROM information_schema.statistics
+    WHERE table_schema = DATABASE()
+      AND table_name = tableName
+      AND index_name = indexName;
+    IF indexCount = 0 THEN
+        SET @sql = CONCAT('CREATE INDEX ', indexName, ' ON ', tableName, '(', columnList, ')');
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END //
+DELIMITER ;
+
+CALL CreateIndexIfNotExists('soc_process_event', 'idx_process_host_time', 'host_id, timestamp');
+CALL CreateIndexIfNotExists('soc_alert_reference', 'idx_alert_status_time', 'status, timestamp');
+CALL CreateIndexIfNotExists('soc_case', 'idx_case_status_created', 'status, created_at');
+CALL CreateIndexIfNotExists('soc_case_alerts', 'idx_case_alerts_case', 'case_id');
+CALL CreateIndexIfNotExists('soc_case_alerts', 'idx_case_alerts_alert', 'alert_id');
+CALL CreateIndexIfNotExists('soc_audit_log', 'idx_audit_user_time', 'user_id, timestamp');
+DROP PROCEDURE IF EXISTS CreateIndexIfNotExists;
 
 -- Seed Data
 INSERT IGNORE INTO soc_role (role_id, role_name, description) VALUES

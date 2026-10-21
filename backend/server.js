@@ -195,6 +195,27 @@ app.get('/api/stats', requireAuth, async (req, res) => {
     }
 });
 
+app.get('/api/alerts/:id', requireAuth, async (req, res) => {
+    try {
+        const alert = await dbGet(`
+            SELECT a.alert_id, a.timestamp, a.severity, a.description, a.status,
+                   a.confidence_score, a.detection_source,
+                   h.hostname as host, h.ip_address, h.os_name,
+                   r.rule_name, r.technique, r.description as rule_description,
+                   e.event_id, e.process_name, e.command_line, e.user_name, e.pid, e.ppid
+            FROM soc_alert_reference a
+            LEFT JOIN soc_host h ON a.host_id = h.host_id
+            LEFT JOIN soc_detection_rule r ON a.rule_id = r.rule_id
+            LEFT JOIN soc_process_event e ON a.event_ref_id = e.event_id
+            WHERE a.alert_id = ?
+        `, [req.params.id]);
+        if (!alert) return res.status(404).json({ error: 'Alert not found' });
+        res.json(alert);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/alerts/:id/ack', requireAuth, requireRole('Analyst'), async (req, res) => {
     try {
         await dbRun('UPDATE soc_alert_reference SET status = ? WHERE alert_id = ?', ['open', req.params.id]);
@@ -398,6 +419,76 @@ app.get('/api/users', requireAuth, requireRole('Manager'), async (req, res) => {
             status: u.status.toUpperCase()
         }));
         res.json(mapped);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/users', requireAuth, requireRole('Manager'), async (req, res) => {
+    const { full_name, email, password, role_id } = req.body;
+    if (!full_name || !email || !password || !role_id) {
+        return res.status(400).json({ error: 'Missing required user fields' });
+    }
+    try {
+        const existing = await dbGet('SELECT login_id FROM soc_login WHERE email = ?', [email]);
+        if (existing) return res.status(409).json({ error: 'User with this email already exists' });
+
+        const hash = await bcrypt.hash(password, 10);
+        const result = await dbRun(
+            "INSERT INTO soc_login (role_id, full_name, email, password_hash, status, created_at) VALUES (?, ?, ?, ?, 'active', NOW())",
+            [role_id, full_name, email, hash]
+        );
+        audit.logAuditAction(req.session.user.id, 'CREATE_USER', 'USER', result.lastID, { email, role_id }, req.ip);
+        res.json({ message: 'User created successfully', user_id: result.lastID });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch('/api/users/:id/status', requireAuth, requireRole('Manager'), async (req, res) => {
+    const { status } = req.body;
+    if (!['active', 'inactive'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status value' });
+    }
+    try {
+        await dbRun('UPDATE soc_login SET status = ? WHERE login_id = ?', [status, req.params.id]);
+        audit.logAuditAction(req.session.user.id, 'UPDATE_USER_STATUS', 'USER', req.params.id, { status }, req.ip);
+        res.json({ message: 'User status updated' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/reports/summary', requireAuth, requireRole('Manager'), async (req, res) => {
+    try {
+        const alertStats = await dbAll('SELECT severity, COUNT(*) as count FROM soc_alert_reference GROUP BY severity');
+        const ruleStats = await dbAll(`
+            SELECT r.rule_name, r.technique, COUNT(a.alert_id) as alert_count
+            FROM soc_detection_rule r
+            LEFT JOIN soc_alert_reference a ON r.rule_id = a.rule_id
+            GROUP BY r.rule_id
+            ORDER BY alert_count DESC LIMIT 5
+        `);
+        const hostStats = await dbAll(`
+            SELECT h.hostname, COUNT(a.alert_id) as alert_count
+            FROM soc_host h
+            LEFT JOIN soc_alert_reference a ON h.host_id = a.host_id
+            GROUP BY h.host_id
+            ORDER BY alert_count DESC LIMIT 5
+        `);
+        const totalCases = await dbGet('SELECT COUNT(*) as count FROM soc_case');
+        const closedCases = await dbGet("SELECT COUNT(*) as count FROM soc_case WHERE status = 'closed'");
+
+        res.json({
+            generated_at: new Date().toISOString(),
+            alerts_by_severity: alertStats,
+            top_rules: ruleStats,
+            top_hosts: hostStats,
+            cases: {
+                total: totalCases ? totalCases.count : 0,
+                closed: closedCases ? closedCases.count : 0
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

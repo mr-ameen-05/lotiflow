@@ -1,143 +1,232 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MOCK_ALERTS } from '../constants';
-import { ArrowLeft, CheckCircle, Shield, Terminal, Clock, Server } from 'lucide-react';
+import {
+    ArrowLeft, CheckCircle, Shield, Terminal, Clock,
+    Server, User, FileCode, AlertTriangle, ExternalLink
+} from 'lucide-react';
 
-const AlertDetail = () => {
-    const { id } = useParams();
+const API_URL = '/api';
+
+const AlertDetail: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [alert, setAlert] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const [acking, setAcking] = useState(false);
+    const [message, setMessage] = useState<string | null>(null);
+
+    const fetchDetail = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(`${API_URL}/alerts/${id}`, { credentials: 'include' });
+            if (res.ok) {
+                setAlert(await res.json());
+            }
+        } catch (err) {
+            console.error('Failed to load alert details:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const found = MOCK_ALERTS.find(a => a.id === id);
-        if (found) setAlert({...found});
+        if (id) fetchDetail();
     }, [id]);
 
-    const handleAcknowledge = () => {
-        if (alert && alert.status === 'new') {
-            setAlert({ ...alert, status: 'open' });
-            // In a real app, make API call here
+    const handleAcknowledge = async () => {
+        if (!alert || alert.status !== 'new') return;
+        setAcking(true);
+        try {
+            const res = await fetch(`${API_URL}/alerts/${id}/ack`, {
+                method: 'POST',
+                credentials: 'include'
+            });
+            if (res.ok) {
+                setAlert({ ...alert, status: 'open' });
+                setMessage('Alert acknowledged successfully.');
+                setTimeout(() => setMessage(null), 3000);
+            }
+        } catch (err) {
+            console.error('Failed to acknowledge alert:', err);
+        } finally {
+            setAcking(false);
         }
     };
 
-    if (!alert) return <div className="text-gray-600 dark:text-gray-400">Loading alert...</div>;
+    if (loading) {
+        return <div className="text-gray-500 text-sm">Loading incident telemetry...</div>;
+    }
 
-    const getSeverityColor = (sev: string) => {
-        switch(sev) {
-            case 'CRITICAL': return 'bg-red-500/10 text-red-500 border-red-500/20';
-            case 'HIGH': return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
-            case 'MEDIUM': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-            case 'LOW': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-            default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
-        }
-    };
+    if (!alert) {
+        return (
+            <div className="text-center py-12">
+                <AlertTriangle size={36} className="text-yellow-500 mx-auto mb-3" />
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Alert Not Found</h2>
+                <button
+                    onClick={() => navigate('/alerts')}
+                    className="mt-4 px-4 py-2 bg-emerald-500 text-gray-950 rounded-lg text-xs font-semibold"
+                >
+                    Return to Alerts
+                </button>
+            </div>
+        );
+    }
+
+    const sev = (alert.severity || 'medium').toLowerCase();
+    const sevBadge =
+        sev === 'critical' ? 'bg-red-500/10 text-red-500 border-red-500/30' :
+        sev === 'high' ? 'bg-orange-500/10 text-orange-500 border-orange-500/30' :
+        sev === 'medium' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30' :
+        'bg-blue-500/10 text-blue-500 border-blue-500/30';
 
     return (
         <div className="flex flex-col gap-6 max-w-5xl mx-auto">
-            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-                <button onClick={() => navigate('/alerts')} className="hover:text-gray-900 dark:text-white transition-colors flex items-center gap-1">
-                    <ArrowLeft size={16} /> Back to Alerts
+            {/* Breadcrumb Navigation */}
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+                <button
+                    onClick={() => navigate('/alerts')}
+                    className="hover:text-gray-900 dark:hover:text-white transition-colors flex items-center gap-1 font-semibold"
+                >
+                    <ArrowLeft size={14} /> Back to Alerts Feed
                 </button>
                 <span>/</span>
-                <span className="text-gray-800 dark:text-gray-300 font-medium">{alert.id}</span>
+                <span className="font-mono text-gray-700 dark:text-gray-300">Alert #{alert.alert_id}</span>
             </div>
 
-            <div className="flex justify-between items-start">
+            {/* Header / Actions Card */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">{alert.ruleTriggered}</h1>
-                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md border ${getSeverityColor(alert.severity)}`}>
-                            {alert.severity}
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded border ${sevBadge}`}>
+                            {sev}
                         </span>
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+                            {alert.rule_name || alert.description}
+                        </h1>
+                        {alert.technique && (
+                            <span className="text-xs font-mono font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                {alert.technique}
+                            </span>
+                        )}
                     </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Detected on {alert.timestamp}</p>
+                    <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-2">
+                        <Clock size={12} /> Detected at {alert.timestamp?.replace('T', ' ').slice(0, 19)}
+                        <span>•</span>
+                        <Server size={12} /> Host: <span className="font-mono text-gray-700 dark:text-gray-300 font-semibold">{alert.host || 'Unknown'}</span>
+                    </p>
                 </div>
+
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-700 px-4 py-2 rounded-lg">
-                        <span className="text-xs text-gray-600 dark:text-gray-400 uppercase font-semibold">Status</span>
-                        <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${alert.status === 'new' ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                            {alert.status}
-                        </span>
-                    </div>
-                    {alert.status === 'new' && (
-                        <button 
+                    {alert.status === 'new' ? (
+                        <button
                             onClick={handleAcknowledge}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-gray-900 dark:text-white text-sm font-medium px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-lg shadow-emerald-500/20"
+                            disabled={acking}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-gray-950 font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
                         >
-                            <CheckCircle size={16} /> Acknowledge
+                            <CheckCircle size={15} />
+                            {acking ? 'Acknowledging...' : 'Acknowledge Alert'}
                         </button>
+                    ) : (
+                        <span className="px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 flex items-center gap-1.5">
+                            <CheckCircle size={14} /> Triaged ({alert.status})
+                        </span>
                     )}
+
+                    <button
+                        onClick={() => navigate('/cases')}
+                        className="bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 font-semibold px-3.5 py-2 rounded-lg text-xs transition-colors"
+                    >
+                        Link to Case
+                    </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-6">
-                <div className="col-span-2 space-y-6">
-                    <div className="bg-white dark:bg-gray-800 border border-gray-700 rounded-xl p-6">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <Terminal size={16} className="text-gray-600 dark:text-gray-400" /> Command Inspector
-                        </h3>
-                        <div className="bg-gray-950 border border-gray-800 rounded-lg p-4 font-mono text-sm text-emerald-400 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                            {alert.commandLine}
-                        </div>
+            {message && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-lg font-medium">
+                    {message}
+                </div>
+            )}
+
+            {/* Command-Line Forensic Inspector */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-xl p-5 shadow-sm">
+                <div className="flex justify-between items-center mb-3">
+                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <Terminal size={15} className="text-emerald-500" />
+                        Command-Line Forensic Inspector
+                    </h2>
+                    <span className="text-[11px] text-gray-400 font-mono">Sysmon Event ID 1</span>
+                </div>
+
+                <div className="bg-gray-950 rounded-xl p-4 font-mono text-xs text-emerald-400 overflow-x-auto border border-gray-800 leading-relaxed shadow-inner">
+                    <code>{alert.command_line || 'No process command line recorded for this event.'}</code>
+                </div>
+
+                {alert.matched_text && (
+                    <div className="mt-3 p-2.5 rounded-lg bg-orange-500/10 border border-orange-500/20 text-xs text-orange-400">
+                        <span className="font-bold">Matched Detection Pattern: </span>
+                        <code className="font-mono">{alert.matched_text}</code>
                     </div>
-                    
-                    <div className="bg-white dark:bg-gray-800 border border-gray-700 rounded-xl p-6">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <Shield size={16} className="text-gray-600 dark:text-gray-400" /> Process Information
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
-                                <div className="text-xs text-gray-500 uppercase font-semibold mb-1">Process Name</div>
-                                <div className="text-gray-900 dark:text-white font-mono">{alert.processName}</div>
-                            </div>
-                            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
-                                <div className="text-xs text-gray-500 uppercase font-semibold mb-1">Process ID (PID)</div>
-                                <div className="text-gray-900 dark:text-white font-mono">{alert.processId}</div>
-                            </div>
-                            <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
-                                <div className="text-xs text-gray-500 uppercase font-semibold mb-1">Parent PID</div>
-                                <div className="text-gray-900 dark:text-white font-mono">{alert.parentProcessId}</div>
-                            </div>
+                )}
+            </div>
+
+            {/* Metadata & Process Context */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Process Details */}
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-xl p-5 shadow-sm space-y-3.5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5 border-b border-gray-100 dark:border-gray-700/60 pb-2">
+                        <FileCode size={15} /> Process Context
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                            <span className="text-gray-400 block mb-0.5">Process Binary</span>
+                            <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                                {alert.process_name || 'N/A'}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-gray-400 block mb-0.5">Execution User</span>
+                            <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                                {alert.user_name || 'SYSTEM'}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-gray-400 block mb-0.5">Process ID (PID)</span>
+                            <span className="font-mono text-gray-700 dark:text-gray-300">
+                                {alert.pid ?? 'N/A'}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-gray-400 block mb-0.5">Parent PID (PPID)</span>
+                            <span className="font-mono text-gray-700 dark:text-gray-300">
+                                {alert.ppid ?? 'N/A'}
+                            </span>
                         </div>
                     </div>
                 </div>
 
-                <div className="col-span-1 space-y-6">
-                    <div className="bg-white dark:bg-gray-800 border border-gray-700 rounded-xl p-6">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <Server size={16} className="text-gray-600 dark:text-gray-400" /> Host Information
-                        </h3>
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 rounded-lg bg-gray-50 dark:bg-gray-900 flex items-center justify-center border border-gray-700">
-                                <Server size={20} className="text-gray-600 dark:text-gray-400" />
-                            </div>
-                            <div>
-                                <div className="text-gray-900 dark:text-white font-medium font-mono">{alert.hostname}</div>
-                                <div className="text-xs text-emerald-400 font-medium">Online</div>
-                            </div>
+                {/* MITRE & Detection Weights */}
+                <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-xl p-5 shadow-sm space-y-3.5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5 border-b border-gray-100 dark:border-gray-700/60 pb-2">
+                        <Shield size={15} /> Detection Reasoning
+                    </h3>
+                    <div className="space-y-2 text-xs">
+                        <div>
+                            <span className="text-gray-400 block mb-0.5">Technique Definition</span>
+                            <span className="font-medium text-gray-800 dark:text-gray-200">
+                                {alert.rule_description || 'Living-off-the-Land abuse pattern.'}
+                            </span>
                         </div>
-                    </div>
-                    
-                    <div className="bg-white dark:bg-gray-800 border border-gray-700 rounded-xl p-6">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                            <Shield size={16} className="text-gray-600 dark:text-gray-400" /> Detection Meta
-                        </h3>
-                        <div className="space-y-4">
-                            <div>
-                                <div className="text-xs text-gray-500 uppercase font-semibold mb-1.5">Confidence Score</div>
-                                <div className="flex items-center gap-3">
-                                    <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                                        <div style={{ width: `${alert.confidence}%` }} className={`h-full ${alert.confidence > 80 ? 'bg-emerald-500' : 'bg-yellow-500'}`}></div>
-                                    </div>
-                                    <div className="text-sm text-gray-900 dark:text-white font-medium">{alert.confidence}/100</div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="text-xs text-gray-500 uppercase font-semibold mb-1.5">MITRE ATT&CK Tag</div>
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-50 dark:bg-gray-900 border border-gray-700 text-xs font-mono text-gray-800 dark:text-gray-300">
-                                    T1059.001
-                                </span>
-                            </div>
+                        <div className="flex justify-between items-center pt-1">
+                            <span className="text-gray-400">Confidence Score:</span>
+                            <span className="font-bold text-emerald-500 font-mono text-sm">
+                                {alert.confidence_score ?? 70} / 100
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Detection Engine:</span>
+                            <span className="text-gray-700 dark:text-gray-300 font-medium">
+                                Python Queue Consumer (BLPOP)
+                            </span>
                         </div>
                     </div>
                 </div>
