@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, ArrowRight, Shield, AlertCircle, Sun, Moon } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Shield, AlertCircle } from 'lucide-react';
 import { useTheme } from '../services/useTheme';
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
-    const { theme, toggleTheme } = useTheme();
+    const { theme: _theme } = useTheme();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -47,190 +47,64 @@ const Login: React.FC = () => {
     };
 
     return (
-        <div
-            style={{
-                minHeight: '100vh',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '1.5rem',
-                backgroundColor: 'var(--bg-app)',
-                color: 'var(--text-primary)',
-                position: 'relative'
-            }}
-        >
-            {/* Theme Toggle Button */}
-            <button
-                type="button"
-                onClick={toggleTheme}
-                className="btn btn-ghost"
-                style={{
-                    position: 'absolute',
-                    top: '1.5rem',
-                    right: '1.5rem',
-                    borderRadius: '50%',
-                    padding: '0.6rem',
-                    boxShadow: 'var(--shadow-sm)'
-                }}
-                title="Toggle Theme"
-            >
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
-            {/* Login Card */}
+        <div className="login-page">
             <div
-                className="card"
-                style={{
-                    width: '100%',
-                    maxWidth: '440px',
-                    padding: '2.25rem',
-                    boxShadow: 'var(--shadow-md)',
-                    border: 'var(--border)'
-                }}
+                className="login-card card"
             >
-                {/* Branding Header */}
-                <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-                    <div
-                        style={{
-                            width: '54px',
-                            height: '54px',
-                            margin: '0 auto 1rem',
-                            borderRadius: '14px',
-                            background: 'var(--accent)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 8px 16px var(--accent-soft)'
-                        }}
-                    >
-                        <Shield size={28} color="#ffffff" strokeWidth={2.5} />
-                    </div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-                        SOCflow
-                    </h1>
-                    <div
-                        style={{
-                            fontSize: '0.72rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.12em',
-                            color: 'var(--text-muted)',
-                            marginTop: '0.25rem'
-                        }}
-                    >
-                        Living-off-the-Land Detection Platform
-                    </div>
+                <div className="login-brand">
+                    <div className="login-mark"><Shield size={24} color="#fff" /></div>
+                    <p className="eyebrow">Security operations</p>
+                    <h1>SOCflow</h1>
+                    <p className="text-sm text-slate-500">Living-off-the-Land detection platform</p>
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
-                    {error && (
-                        <div
-                            style={{
-                                padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius)',
-                                background: 'var(--danger-soft)',
-                                border: '1px solid var(--danger-border)',
-                                color: 'var(--danger)',
-                                fontSize: '0.82rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem'
-                            }}
-                        >
+                <div className="login-intro"><h2>Sign in to your workspace</h2><p>Use your assigned SOCflow account to continue.</p></div>
+                <form onSubmit={handleLogin} className="login-form">
+                    {error && <div role="alert" className="login-error">
                             <AlertCircle size={16} style={{ flexShrink: 0 }} />
                             <span>{error}</span>
-                        </div>
-                    )}
+                        </div>}
 
                     <div>
-                        <label
-                            style={{
-                                display: 'block',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.04em',
-                                color: 'var(--text-secondary)',
-                                marginBottom: '0.4rem'
-                            }}
-                        >
+                        <label className="login-label" htmlFor="login-email">
                             Work Email
                         </label>
-                        <div style={{ position: 'relative' }}>
-                            <Mail
-                                size={16}
-                                style={{
-                                    position: 'absolute',
-                                    left: '12px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: 'var(--text-muted)',
-                                    pointerEvents: 'none'
-                                }}
-                            />
+                        <div className="login-control">
+                            <Mail size={16} aria-hidden="true" />
                             <input
+                                id="login-email"
                                 type="email"
                                 required
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="input"
-                                style={{ paddingLeft: '38px' }}
-                                placeholder="analyst@socflow.local or manager@socflow.local"
+                                autoComplete="username"
+                                placeholder="name@organization.com"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label
-                            style={{
-                                display: 'block',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.04em',
-                                color: 'var(--text-secondary)',
-                                marginBottom: '0.4rem'
-                            }}
-                        >
+                        <label className="login-label" htmlFor="login-password">
                             Password
                         </label>
-                        <div style={{ position: 'relative' }}>
-                            <Lock
-                                size={16}
-                                style={{
-                                    position: 'absolute',
-                                    left: '12px',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: 'var(--text-muted)',
-                                    pointerEvents: 'none'
-                                }}
-                            />
+                        <div className="login-control">
+                            <Lock size={16} aria-hidden="true" />
                             <input
+                                id="login-password"
                                 type="password"
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="input"
-                                style={{ paddingLeft: '38px' }}
+                                autoComplete="current-password"
                                 placeholder="••••••••••••"
                             />
                         </div>
                     </div>
 
-                    <div style={{ paddingTop: '0.25rem' }}>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="btn btn-primary"
-                            style={{
-                                width: '100%',
-                                padding: '0.7rem 1.25rem',
-                                fontSize: '0.9rem',
-                                borderRadius: 'var(--radius)'
-                            }}
-                        >
+                    <div>
+                        <button type="submit" disabled={loading} className="btn btn-primary login-submit">
                             {loading ? (
                                 <span>Authenticating...</span>
                             ) : (
@@ -242,31 +116,8 @@ const Login: React.FC = () => {
                         </button>
                     </div>
 
-                    {/* Pre-configured Demo Reference */}
-                    <div
-                        style={{
-                            marginTop: '0.5rem',
-                            padding: '0.75rem 0.9rem',
-                            borderRadius: 'var(--radius)',
-                            background: 'var(--bg-subtle)',
-                            border: 'var(--border)',
-                            fontSize: '0.75rem',
-                            color: 'var(--text-muted)'
-                        }}
-                    >
-                        <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                            Quick Demo Logins:
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>
-                            <span>manager@socflow.local</span>
-                            <span style={{ color: 'var(--accent)', fontWeight: 600 }}>SOCflow2026!</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', marginTop: '0.2rem' }}>
-                            <span>analyst@socflow.local</span>
-                            <span style={{ color: 'var(--accent)', fontWeight: 600 }}>SOCflow2026!</span>
-                        </div>
-                    </div>
                 </form>
+                <p className="login-footnote">Protected access for authorized security personnel.</p>
             </div>
         </div>
     );

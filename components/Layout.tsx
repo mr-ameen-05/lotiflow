@@ -1,93 +1,58 @@
-import React from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import {
-    LayoutDashboard, Shield, Server, Search, Bell, User,
-    Briefcase, LogOut, Sun, Moon,
-    Users, ShieldAlert, ClipboardList, FileText, AlertTriangle
-} from 'lucide-react';
-import { useTheme } from '../services/useTheme';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Bell, Command, LogOut, Menu, Moon, Search, Sun, X } from 'lucide-react';
 import Sidebar from './Sidebar';
+import CommandPalette from './CommandPalette';
+import NotificationsPanel from './NotificationsPanel';
+import { MANAGER_NAV_ITEMS, ANALYST_NAV_ITEMS } from '../constants';
+import { useTheme } from '../services/useTheme';
 
-const Layout = () => {
+const Layout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
+    const role = (localStorage.getItem('userRole') || 'ANALYST').toUpperCase();
+    const userName = localStorage.getItem('userName') || (role === 'MANAGER' ? 'Manager' : 'Analyst');
+    const navItems = role === 'MANAGER' ? MANAGER_NAV_ITEMS : ANALYST_NAV_ITEMS;
+    const current = useMemo(() => [...navItems].sort((a, b) => b.path.length - a.path.length).find(item => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)), [location.pathname, navItems]);
+    const [paletteOpen, setPaletteOpen] = useState(false);
+    const [notificationsOpen, setNotificationsOpen] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
     const { theme, toggleTheme } = useTheme();
 
-    const userRole = localStorage.getItem('userRole') || '';
-    const userName = localStorage.getItem('userName') || 'User';
-    const isManager = userRole === 'MANAGER'; // Fixed role string case
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => {
+            if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setPaletteOpen(value => !value); }
+            if (event.key === 'Escape') { setPaletteOpen(false); setNotificationsOpen(false); setMobileOpen(false); }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, []);
 
-    const getPageTitle = (path: string) => {
-        if (path.includes('hosts')) return 'Hosts';
-        if (path.includes('users')) return 'Users';
-        if (path.includes('rules')) return 'Detection Rules';
-        if (path.includes('audit')) return 'Audit Log';
-        if (path.includes('reports')) return 'Reports';
-        if (path.includes('alerts')) return 'Alerts';
-        if (path.includes('cases')) return 'Cases';
-        if (path.includes('explorer')) return 'Log Explorer';
-        if (path.includes('profile')) return 'Profile';
-        return 'Overview';
+    const signOut = () => {
+        ['token', 'userRole', 'userName', 'userEmail', 'userId'].forEach(key => localStorage.removeItem(key));
+        void fetch('/api/logout', { method: 'POST', credentials: 'include' }).catch(() => undefined);
+        navigate('/login', { replace: true });
     };
 
-    const handleLogout = async () => {
-        try {
-            await fetch('/api/logout', { method: 'POST', credentials: 'include' });
-        } catch { /* noop */ }
-        ['token', 'userRole', 'userName', 'userEmail', 'userId'].forEach(k => localStorage.removeItem(k));
-        navigate('/');
-    };
-
-    return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-app)' }} className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
-            <Sidebar />
-
-            {/* Main column */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                {/* Topbar */}
-                <header style={{
-                    height: '58px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '0 1.5rem', borderBottom: 'var(--border)', background: 'var(--bg-topbar)',
-                    backdropFilter: 'blur(8px)', position: 'sticky', top: 0, zIndex: 10
-                }} className="border-gray-800 bg-gray-50 dark:bg-gray-900">
-                    <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }} className="text-gray-900 dark:text-white">
-                        {getPageTitle(location.pathname)}
-                    </div>
-
-                    <div className="row flex items-center" style={{ gap: '0.5rem' }}>
-                        <div style={{ position: 'relative', width: '260px' }}>
-                            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                            <input type="text" className="input bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-700 rounded-md" placeholder="Search..." style={{ paddingLeft: '30px', paddingTop: '0.35rem', paddingBottom: '0.35rem' }} />
-                        </div>
-                        <button className="btn btn-ghost hover:bg-white dark:bg-gray-800 rounded-full" style={{ padding: '0.45rem' }}>
-                            <Bell size={17} />
-                        </button>
-                        <button className="btn btn-ghost hover:bg-white dark:bg-gray-800 rounded-full" style={{ padding: '0.45rem' }} onClick={toggleTheme}>
-                            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-                        </button>
-                        <NavLink to="/profile" className="row flex items-center hover:bg-white dark:bg-gray-800 rounded-full px-2 py-1" style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', fontWeight: 500, paddingLeft: '0.5rem', textDecoration: 'none' }}>
-                            <div style={{
-                                width: '26px', height: '26px', borderRadius: '50%', background: 'var(--accent-soft)',
-                                color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: '0.65rem', fontWeight: 700, marginRight: '8px'
-                            }} className="bg-gray-100 dark:bg-gray-700 text-emerald-400">
-                                {userName.slice(0, 2).toUpperCase()}
-                            </div>
-                            <span className="text-gray-800 dark:text-gray-300">{userName}</span>
-                        </NavLink>
-                        <button onClick={handleLogout} className="btn btn-ghost ml-2 hover:bg-white dark:bg-gray-800 rounded-full p-2" title="Sign Out">
-                            <LogOut size={17} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:text-white" />
-                        </button>
-                    </div>
-                </header>
-
-                {/* Page content */}
-                <main style={{ flex: 1, overflowY: 'auto' }} className="p-6">
-                    <Outlet />
-                </main>
-            </div>
+    return <div className="app-shell">
+        <Sidebar open={mobileOpen} onNavigate={() => setMobileOpen(false)} />
+        <div className="app-main">
+            <header className="app-topbar">
+                <div className="flex min-w-0 items-center gap-3">
+                    <button className="icon-button md:hidden" type="button" onClick={() => setMobileOpen(value => !value)} aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}>{mobileOpen ? <X size={19} /> : <Menu size={19} />}</button>
+                    <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{role === 'MANAGER' ? 'Manager workspace' : 'Analyst workspace'}</p><h1 className="truncate text-sm font-semibold text-slate-900 dark:text-white">{current?.label || 'SOCflow'}</h1></div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => setPaletteOpen(true)} className="search-trigger" aria-label="Search pages"><Search size={16} /><span>Search</span><kbd><Command size={10} /> K</kbd></button>
+                    <div className="relative"><button type="button" className="icon-button" aria-label="Recent alerts" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(value => !value)}><Bell size={18} /></button><NotificationsPanel open={notificationsOpen} role={role} onClose={() => setNotificationsOpen(false)} /></div>
+                    <button type="button" onClick={toggleTheme} className="icon-button" aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}>{theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}</button>
+                    <div className="topbar-user"><span className="user-avatar">{userName.trim().slice(0, 1).toUpperCase()}</span><span className="hidden min-w-0 sm:block"><span className="block max-w-32 truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{userName}</span><span className="block text-[10px] text-slate-500">{role === 'MANAGER' ? 'Manager' : 'Analyst'}</span></span><button type="button" className="icon-button icon-button-small" title="Sign out" aria-label="Sign out" onClick={signOut}><LogOut size={15} /></button></div>
+                </div>
+            </header>
+            <main className="app-content"><Outlet /></main>
         </div>
-    );
+        <CommandPalette open={paletteOpen} actions={navItems} role={role} onClose={() => setPaletteOpen(false)} />
+    </div>;
 };
 
 export default Layout;

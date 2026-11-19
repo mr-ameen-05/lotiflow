@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 export const THEME_KEY = 'socflow-theme';
 
 export const getTheme = (): 'light' | 'dark' =>
-    (localStorage.getItem(THEME_KEY) as 'light' | 'dark') || 'dark';
+    (localStorage.getItem(THEME_KEY) as 'light' | 'dark') || 'light';
 
 export const useTheme = () => {
     const [theme, setTheme] = useState<'light' | 'dark'>(getTheme());

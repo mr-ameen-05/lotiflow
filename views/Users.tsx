@@ -105,7 +105,7 @@ const Users: React.FC = () => {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm"
                     >
                         <UserPlus size={14} /> Provision User
                     </button>
@@ -272,7 +272,7 @@ const Users: React.FC = () => {
                                 <button
                                     type="submit"
                                     disabled={submitting}
-                                    className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm"
+                                    className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm"
                                 >
                                     {submitting ? 'Creating...' : 'Create Account'}
                                 </button>

@@ -93,7 +93,7 @@ const Audit: React.FC = () => {
                             onClick={() => setActionFilter(act)}
                             className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase transition-colors ${
                                 actionFilter === act
-                                    ? 'bg-emerald-500 text-gray-950 font-bold'
+                                    ? 'bg-emerald-500 text-white font-bold'
                                     : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'
                             }`}
                         >

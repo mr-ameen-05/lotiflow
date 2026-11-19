@@ -108,7 +108,7 @@ const Hosts: React.FC = () => {
                     <button
                         onClick={handleDownloadAgent}
                         disabled={downloading}
-                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm disabled:opacity-60"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm disabled:opacity-60"
                     >
                         <Download size={14} />
                         {downloading ? 'Bundling...' : 'Download Bundle (ZIP)'}
@@ -305,7 +305,7 @@ const Hosts: React.FC = () => {
                                 <button
                                     type="submit"
                                     disabled={submitting}
-                                    className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm"
+                                    className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm"
                                 >
                                     {submitting ? 'Registering...' : 'Save Host'}
                                 </button>

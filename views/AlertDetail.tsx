@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, CheckCircle, Shield, Terminal, Clock,
-    Server, User, FileCode, AlertTriangle, ExternalLink
+    Server, User, FileCode, AlertTriangle
 } from 'lucide-react';
+import AttackKnowledge from '../components/AttackKnowledge';
 
 const API_URL = '/api';
 
@@ -64,7 +65,7 @@ const AlertDetail: React.FC = () => {
                 <h2 className="text-lg font-bold text-gray-900 dark:text-white">Alert Not Found</h2>
                 <button
                     onClick={() => navigate('/alerts')}
-                    className="mt-4 px-4 py-2 bg-emerald-500 text-gray-950 rounded-lg text-xs font-semibold"
+                    className="mt-4 px-4 py-2 bg-emerald-500 text-emerald-950 rounded-lg text-xs font-semibold"
                 >
                     Return to Alerts
                 </button>
@@ -121,7 +122,7 @@ const AlertDetail: React.FC = () => {
                         <button
                             onClick={handleAcknowledge}
                             disabled={acking}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-gray-950 font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-emerald-950 font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
                         >
                             <CheckCircle size={15} />
                             {acking ? 'Acknowledging...' : 'Acknowledge Alert'}
@@ -229,6 +230,7 @@ const AlertDetail: React.FC = () => {
                             </span>
                         </div>
                     </div>
+                    <AttackKnowledge technique={alert.technique} />
                 </div>
             </div>
         </div>

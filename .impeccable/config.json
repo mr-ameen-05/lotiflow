@@ -1,0 +1,27 @@
+{
+  "buildPath": "code",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "index.css"
+        ],
+        "createdAt": "2026-11-12T04:44:17.864Z",
+        "reason": "Shared override uses white foreground on emerald action backgrounds for readable button contrast"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "files": [
+          "index.css"
+        ],
+        "createdAt": "2026-11-12T04:44:22.775Z",
+        "reason": "Existing application typography is retained as an established brand and readability choice pending live visual review"
+      }
+    ]
+  }
+}

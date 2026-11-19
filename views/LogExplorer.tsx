@@ -82,7 +82,7 @@ const LogExplorer: React.FC = () => {
                     </button>
                     <button
                         onClick={() => handleSearch()}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm"
                     >
                         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                         Run Query

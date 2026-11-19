@@ -78,7 +78,7 @@ const Reports: React.FC = () => {
                     <button
                         onClick={handleExportCSV}
                         disabled={exporting || !summary}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm disabled:opacity-60"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm disabled:opacity-60"
                     >
                         <Download size={14} />
                         {exporting ? 'Generating CSV...' : 'Export Report (CSV)'}

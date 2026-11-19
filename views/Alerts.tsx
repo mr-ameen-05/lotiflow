@@ -118,7 +118,7 @@ const Alerts: React.FC = () => {
                                 onClick={() => setStatusFilter(st)}
                                 className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
                                     statusFilter === st
-                                        ? 'bg-emerald-500 text-gray-950 font-bold'
+                                        ? 'bg-emerald-500 text-white font-bold'
                                         : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                 }`}
                             >
@@ -135,7 +135,7 @@ const Alerts: React.FC = () => {
                                 onClick={() => setSeverityFilter(sev)}
                                 className={`px-2.5 py-1 rounded-md text-xs font-semibold capitalize transition-colors ${
                                     severityFilter === sev
-                                        ? 'bg-emerald-500 text-gray-950 font-bold'
+                                        ? 'bg-emerald-500 text-white font-bold'
                                         : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                 }`}
                             >
@@ -240,7 +240,7 @@ const Alerts: React.FC = () => {
                                                                 console.error(err);
                                                             }
                                                         }}
-                                                        className="px-2.5 py-1 text-[11px] font-bold rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-gray-950 transition-colors"
+                                                        className="px-2.5 py-1 text-[11px] font-bold rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-colors"
                                                     >
                                                         Claim
                                                     </button>

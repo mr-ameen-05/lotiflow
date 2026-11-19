@@ -124,7 +124,7 @@ const ManagerDashboard: React.FC = () => {
                     <button
                         onClick={handleDownloadAgent}
                         disabled={downloading}
-                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm disabled:opacity-60"
+                        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm disabled:opacity-60"
                     >
                         <Download size={14} />
                         {downloading ? 'Preparing Bundle...' : 'Agent Package (ZIP)'}

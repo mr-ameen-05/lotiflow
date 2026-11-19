@@ -155,7 +155,7 @@ const Cases: React.FC = () => {
                 </div>
                 <button
                     onClick={() => setShowNewCaseModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm"
                 >
                     <Plus size={14} /> New Incident Case
                 </button>
@@ -185,7 +185,7 @@ const Cases: React.FC = () => {
                                 onClick={() => setStatusFilter(st)}
                                 className={`px-2 py-0.5 rounded capitalize font-semibold ${
                                     statusFilter === st
-                                        ? 'bg-emerald-500 text-gray-950'
+                                        ? 'bg-emerald-500 text-white'
                                         : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'
                                 }`}
                             >
@@ -336,7 +336,7 @@ const Cases: React.FC = () => {
                                     <button
                                         type="submit"
                                         disabled={submittingNote || !newNote.trim()}
-                                        className="bg-emerald-500 hover:bg-emerald-600 text-gray-950 font-bold px-3.5 py-2 rounded-lg text-xs transition-colors flex items-center gap-1 disabled:opacity-50"
+                                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-3.5 py-2 rounded-lg text-xs transition-colors flex items-center gap-1 disabled:opacity-50"
                                     >
                                         <Send size={13} /> Add Note
                                     </button>
@@ -412,7 +412,7 @@ const Cases: React.FC = () => {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-gray-950 transition-colors shadow-sm"
+                                    className="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-colors shadow-sm"
                                 >
                                     Create Case
                                 </button>

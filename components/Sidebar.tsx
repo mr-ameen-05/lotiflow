@@ -1,58 +1,49 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Shield } from 'lucide-react';
-import { MANAGER_NAV_ITEMS, ANALYST_NAV_ITEMS, COLORS } from '../constants';
+import { ShieldCheck } from 'lucide-react';
+import { MANAGER_NAV_ITEMS, ANALYST_NAV_ITEMS } from '../constants';
 
-const Sidebar: React.FC = () => {
-  const userRole = localStorage.getItem('userRole') || 'ANALYST'; // Default to ANALYST if empty for now
-  const isManager = userRole === 'MANAGER';
-  const NAV_ITEMS = isManager ? MANAGER_NAV_ITEMS : ANALYST_NAV_ITEMS;
+type SidebarProps = { open?: boolean; onNavigate?: () => void };
 
-  return (
-    <aside className={`flex flex-col flex-shrink-0 w-64 border-r border-gray-800 bg-gray-50 dark:bg-gray-900 sticky top-0 h-screen transition-all duration-300 z-20`}>
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-gray-800">
-        <div className="bg-emerald-500 rounded-lg p-1.5 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <Shield className="text-gray-900 dark:text-white" size={20} strokeWidth={2.5} />
-        </div>
-        <div>
-            <div className="font-bold text-lg tracking-tight text-gray-900 dark:text-white leading-tight">SOCflow</div>
-            <div className="text-[10px] text-emerald-400 font-semibold uppercase tracking-widest">Platform</div>
-        </div>
-      </div>
+const Sidebar: React.FC<SidebarProps> = ({ open = false, onNavigate }) => {
+    const role = (localStorage.getItem('userRole') || 'ANALYST').toUpperCase();
+    const isManager = role === 'MANAGER';
+    const navItems = isManager ? MANAGER_NAV_ITEMS : ANALYST_NAV_ITEMS;
+    const groups: [string, string[]][] = isManager
+        ? [['Workspace', ['overview']], ['Fleet', ['hosts']], ['Administration', ['users', 'rules']], ['Governance', ['audit', 'reports']], ['Account', ['profile']]]
+        : [['Workspace', ['overview']], ['Triage', ['alerts']], ['Investigate', ['cases', 'explorer']], ['Account', ['profile']]];
 
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4 px-2">Navigation</div>
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.id}
-            to={item.path}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-sm font-medium ${
-                isActive
-                  ? 'bg-emerald-500/10 text-emerald-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-white dark:bg-gray-800 hover:text-gray-200'
-              }`
-            }
-          >
-            {item.icon}
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
+    return (
+        <>
+            {open && <button aria-label="Close navigation" onClick={onNavigate} className="fixed inset-0 z-30 bg-slate-950/30 md:hidden" />}
+            <aside className={`app-sidebar ${open ? 'app-sidebar-open' : ''}`} aria-label="Primary navigation">
+                <NavLink to="/overview" onClick={onNavigate} className="flex items-center gap-3 px-5 h-[68px] border-b border-[var(--border-color)] no-underline">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-white"><ShieldCheck size={20} /></span>
+                    <span className="min-w-0"><span className="block text-[15px] font-bold tracking-tight text-slate-900 dark:text-white">SOCflow</span><span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Security operations</span></span>
+                </NavLink>
 
-      <div className="p-4 mt-auto border-t border-gray-800">
-        <div className="bg-white dark:bg-gray-800/50 p-4 rounded-xl border border-gray-700/50">
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-400">Engine Online</span>
-          </div>
-          <p className="text-[11px] text-gray-500 font-medium leading-relaxed">
-            {isManager ? 'Manager access active.' : 'Analyst access active.'}
-          </p>
-        </div>
-      </div>
-    </aside>
-  );
+                <nav className="flex-1 overflow-y-auto px-3 py-5" aria-label="Workspace">
+                    {groups.map(([label, ids]) => {
+                        const items = navItems.filter(item => ids.includes(item.id));
+                        if (!items.length) return null;
+                        return <section key={label} className="mb-5">
+                            <h2 className="px-3 mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">{label}</h2>
+                            <div className="space-y-1">{items.map(item => <NavLink key={item.id} to={item.path} end onClick={onNavigate} className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}>
+                                <span className="shrink-0">{item.icon}</span><span>{item.label}</span>
+                            </NavLink>)}</div>
+                        </section>;
+                    })}
+                </nav>
+
+                <div className="p-4 border-t border-[var(--border-color)]">
+                    <div className="flex items-center gap-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 px-3 py-3">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden="true" />
+                        <div><p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{isManager ? 'Manager workspace' : 'Analyst workspace'}</p><p className="text-[10px] text-slate-500 dark:text-slate-400">Role-based access active</p></div>
+                    </div>
+                </div>
+            </aside>
+        </>
+    );
 };
 
 export default Sidebar;

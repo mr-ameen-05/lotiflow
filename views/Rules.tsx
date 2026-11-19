@@ -3,6 +3,7 @@ import {
     ShieldAlert, ToggleLeft, ToggleRight, CheckCircle,
     XCircle, Clock, AlertTriangle, RefreshCw, Search
 } from 'lucide-react';
+import AttackKnowledge from '../components/AttackKnowledge';
 
 const API_URL = '/api';
 
@@ -12,6 +13,7 @@ const Rules: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [updatingId, setUpdatingId] = useState<number | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const [selectedRuleId, setSelectedRuleId] = useState<number | null>(null);
 
     const loadRules = async () => {
         setLoading(true);
@@ -139,9 +141,9 @@ const Rules: React.FC = () => {
                                         <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded border ${getSeverityBadge(rule.severity_default)}`}>
                                             {rule.severity_default}
                                         </span>
-                                        <span className="font-mono text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded">
+                                        <button onClick={() => setSelectedRuleId(selectedRuleId === rule.rule_id ? null : rule.rule_id)} className="font-mono text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 px-2 py-0.5 rounded hover:bg-emerald-500/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500" aria-expanded={selectedRuleId === rule.rule_id}>
                                             {rule.technique}
-                                        </span>
+                                        </button>
                                     </div>
                                     <button
                                         onClick={() => toggleRule(rule.rule_id, isEnabled)}
@@ -167,6 +169,7 @@ const Rules: React.FC = () => {
                                 <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed mb-3">
                                     {rule.description}
                                 </p>
+                                {selectedRuleId === rule.rule_id && <AttackKnowledge technique={rule.technique} />}
                             </div>
 
                             <div className="pt-3 border-t border-gray-100 dark:border-gray-700/60 flex justify-between items-center text-[11px] text-gray-400 font-mono">

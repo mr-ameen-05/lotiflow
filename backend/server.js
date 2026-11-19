@@ -15,9 +15,13 @@ const audit = require('./middleware/audit');
 
 const ENROLLMENT_SECRET = process.env.ENROLLMENT_SECRET || 'SOCflow-Enroll-2026!';
 const PORT = process.env.PORT || 5001;
+const ATTACK_STIX_URL = 'https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack.json';
+const ATTACK_CACHE_TTL = 6 * 60 * 60 * 1000;
 
 let pool = null;
 let redisClient = null;
+// shortcut: cache is process-local, add persistent storage if ATT&CK data must survive restarts.
+let attackCache = { expiresAt: 0, fetchedAt: null, techniques: new Map() };
 
 async function initRedis() {
     if (!process.env.REDIS_URL) return;
@@ -422,6 +426,54 @@ app.get('/api/rules', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+app.get('/api/attack/techniques', requireAuth, async (req, res) => {
+    let ids;
+    try {
+        ids = (await dbAll("SELECT DISTINCT technique FROM soc_detection_rule WHERE technique IS NOT NULL AND technique != ''"))
+            .map(row => row.technique.trim());
+    } catch (err) {
+        return res.status(500).json({ error: 'Could not load configured ATT&CK technique IDs.' });
+    }
+
+    if (Date.now() >= attackCache.expiresAt) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        try {
+            const response = await fetch(ATTACK_STIX_URL, { signal: controller.signal });
+            if (!response.ok) throw new Error(`MITRE ATT&CK returned HTTP ${response.status}`);
+            const bundle = await response.json();
+            const techniques = new Map();
+            for (const item of bundle.objects || []) {
+                if (item.type !== 'attack-pattern' || item.revoked || item.x_mitre_deprecated || !item.x_mitre_domains?.includes('enterprise-attack')) continue;
+                const reference = item.external_references?.find(ref => ref.source_name === 'mitre-attack' && ref.external_id);
+                if (!reference) continue;
+                techniques.set(reference.external_id, {
+                    id: reference.external_id,
+                    name: item.name,
+                    description: item.description,
+                    url: reference.url,
+                    tactics: (item.kill_chain_phases || []).filter(phase => phase.kill_chain_name === 'mitre-attack').map(phase => phase.phase_name.replace(/-/g, ' ')),
+                    platforms: item.x_mitre_platforms || []
+                });
+            }
+            attackCache = { expiresAt: Date.now() + ATTACK_CACHE_TTL, fetchedAt: new Date().toISOString(), techniques };
+        } catch (err) {
+            if (!attackCache.techniques.size) {
+                return res.status(503).json({ error: 'MITRE ATT&CK knowledge is unavailable. Check the server network connection and retry.' });
+            }
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    res.json({
+        source: 'MITRE ATT&CK Enterprise STIX 2.1',
+        fetched_at: attackCache.fetchedAt,
+        stale: Date.now() >= attackCache.expiresAt,
+        techniques: ids.map(id => attackCache.techniques.get(id)).filter(Boolean)
+    });
 });
 
 app.put('/api/rules/:id', requireAuth, requireRole('Manager'), async (req, res) => {
